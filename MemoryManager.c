@@ -103,10 +103,37 @@ void Mem_Dump(){
 	} while (*(int*) nextChunk != 0);
 }
 
+void* Mem_Alloc (int size){
+	//create new header after the allocated memory
+		//set new header's size = oldSize - (size + header)
+		//set new header's next = 0
+	int headerSize = 8;
+	void* newHeader = head + size + headerSize;
+
+	int newSize = *(int*)head - (size + headerSize);
+	*(int*) newHeader = newSize;
+
+	int next = 0;
+	void* nextPtr = newHeader + (headerSize/2);
+	*(int*) nextPtr = next;
+
+	//change head size field to new size
+	//change head next field to magic number
+	*(int*) head = size;
+
+	void* magicNumberLocation = head + (headerSize/2);
+	*(int*) magicNumberLocation = 1837;
+
+	return head;
+}
+
 //main is just for testing purposes
 int main (int argc, char **argv){
 	//printf("%p\n", Mem_Init(2000));
 	Mem_Init(2000);
+	printf("Head is found at %p with size %d.\n", head, *(int*)head);
+	Mem_Dump();
+	Mem_Alloc(100);
 	printf("Head is found at %p with size %d.\n", head, *(int*)head);
 	Mem_Dump();
 
