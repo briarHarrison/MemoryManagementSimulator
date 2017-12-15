@@ -50,11 +50,11 @@ void *Mem_Init (int sizeOfRegion){
 
 	//set header of current free chunk
 	int size = requestSize - headerSize;
-	head = &size;
+	*(int*) head = size;
 
 	int next = 0;
 	void* nextPtr = head + (headerSize/2);
-	nextPtr = &next;
+	*(int*) nextPtr = next;
 
 	return ptr;
 }
@@ -62,32 +62,52 @@ void *Mem_Init (int sizeOfRegion){
 //helper function iterates through the memory until it finds a chunk flagged as free
 //i.e., the chunk's header does not contain the magic number 1837.
 void* findFree(){
+	printf("at the begining of findFree, and Head is found at %p with size %d.\n", head, *(int*)head);
 	//for now, max size is one page = 4096
 	//int maxSize = getpagesize();
 	//4096 = 0b1000000000000 = 0x1000
 	int offset = 4;
 
 	void* nextHeader = head;
+	
+	printf("set nextHeader, and Head is found at %p with size %d.\n", head, *(int*)head);
+
+	printf("The magic number value is %d.\n", *(int*)(nextHeader+offset));
 	while ((*(int*)(nextHeader + offset)) == 1837){
+		printf("So we're looking at the next chunk.\n");
 		nextHeader = nextHeader + *(int*)nextHeader + (offset*2);
 	}
-
+	printf("Head is found at %p with size %d.\n", head, *(int*)head);
+	printf("First free memory found at %p with size %d.\n", nextHeader, *(int*)nextHeader);
 	return nextHeader;
 }
 
 void Mem_Dump(){
 	//find the first free chunk
-	printf("First free chunk is at %p\n", findFree());
-	printf("Size of first free chunk is %d\n", *(int*)head);
-	printf("Next free chunk is %d\n", *(int*)(head+4));
-	
+	void* firstChunk = findFree();
+	//printf("Size of first free chunk is %d\n", *(int*)head);
+	//printf("Next free chunk is %d\n", *(int*)(head+4));
+	printf("Free memory:\n");
+
 	//loop until next is 0
+	void* nextChunk = firstChunk;
+	do{
+		int* size = (int*)nextChunk;
+		void* next = nextChunk+4;
+		
+		printf("address: %p\n", nextChunk+8);
+		printf("size: %d\n", *size);
+		//printf("next: %d\n", *(int*)next);
+
+		nextChunk = next;
+	} while (*(int*) nextChunk != 0);
 }
 
 //main is just for testing purposes
 int main (int argc, char **argv){
 	//printf("%p\n", Mem_Init(2000));
 	Mem_Init(2000);
+	printf("Head is found at %p with size %d.\n", head, *(int*)head);
 	Mem_Dump();
 
 	return 0;
