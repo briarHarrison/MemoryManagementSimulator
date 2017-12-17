@@ -59,9 +59,10 @@ void *Mem_Init (int sizeOfRegion){
 	return ptr;
 }
 
-//helper function iterates through the memory until it finds a chunk flagged as free
+//helper function iterates through the memory until it finds a chunk flagged as
+//free that is at least as large as the specified size
 //i.e., the chunk's header does not contain the magic number 1837.
-void* findFree(){
+void* findFree(int size){
 	printf("at the begining of findFree, and Head is found at %p with size %d.\n", head, *(int*)head);
 	//for now, max size is one page = 4096
 	//int maxSize = getpagesize();
@@ -77,6 +78,12 @@ void* findFree(){
 		printf("So we're looking at the next chunk.\n");
 		nextHeader = nextHeader + *(int*)nextHeader + (offset*2);
 	}
+
+	//find the first chunk that is at least as large as the specified size
+	while (*(int*)nextHeader < size){
+		nextHeader = nextHeader + *(int*)nextHeader + (offset*2);
+	}
+
 	printf("Head is found at %p with size %d.\n", head, *(int*)head);
 	printf("First free memory found at %p with size %d.\n", nextHeader, *(int*)nextHeader);
 	return nextHeader;
@@ -84,7 +91,7 @@ void* findFree(){
 
 void Mem_Dump(){
 	//find the first free chunk
-	void* firstChunk = findFree();
+	void* firstChunk = findFree(0);
 	//printf("Size of first free chunk is %d\n", *(int*)head);
 	//printf("Next free chunk is %d\n", *(int*)(head+4));
 	printf("Free memory:\n");
@@ -104,27 +111,39 @@ void Mem_Dump(){
 }
 
 void* Mem_Alloc (int size){
-	//create new header after the allocated memory
-		//set new header's size = oldSize - (size + header)
-		//set new header's next = 0
 	int headerSize = 8;
-	void* newHeader = head + size + headerSize;
 
-	int newSize = *(int*)head - (size + headerSize);
-	*(int*) newHeader = newSize;
+	//find a free memory chunk that can fit the new allocation
+	void* free = findFree(size);
+	
+	//only want to create a new header if there is enough space for it
+	if (*(int*) free <= size + headerSize){
+		size += headerSize;
+	} else {
+		//create new header after the allocated memory
+			//set new header's size = oldSize - (size + header)
+			//set new header's next = oldNext
+		void* newHeader = free + size + headerSize;
 
-	int next = 0;
-	void* nextPtr = newHeader + (headerSize/2);
-	*(int*) nextPtr = next;
+		int newSize = *(int*)free - (size + headerSize);
+		*(int*) newHeader = newSize;
+
+		void* nextPtr = newHeader + (headerSize/2);
+		if (*(int*)(free + (headerSize/2)) == 0){
+			*(int*)nextPtr = 0;
+		} else {
+			nextPtr = (free + (headerSize/2));
+		}
+	}
 
 	//change head size field to new size
 	//change head next field to magic number
-	*(int*) head = size;
+	*(int*) free = size;
 
-	void* magicNumberLocation = head + (headerSize/2);
+	void* magicNumberLocation = free + (headerSize/2);
 	*(int*) magicNumberLocation = 1837;
 
-	return head;
+	return free;
 }
 
 //main is just for testing purposes
@@ -135,6 +154,10 @@ int main (int argc, char **argv){
 	Mem_Dump();
 	Mem_Alloc(100);
 	printf("Head is found at %p with size %d.\n", head, *(int*)head);
+	Mem_Dump();
+	Mem_Alloc(200);
+	printf("Head is found at %p with size %d.\n", head, *(int*)head);
+	printf("Second chunk is found at %p with size %d.\n", (head+(*(int*)head)+8), *(int*)(head+(*(int*)head)+8));
 	Mem_Dump();
 
 	return 0;
